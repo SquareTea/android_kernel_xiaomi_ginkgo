@@ -131,13 +131,10 @@ module_param_named(devices, binder_devices_param, charp, 0444);
 
 static DECLARE_WAIT_QUEUE_HEAD(binder_user_error_wait);
 static int binder_stop_on_user_error;
-
-static int binder_set_stop_on_user_error(const char *val,
-					 const struct kernel_param *kp)
-
 static bool binder_global_pid_lookups = true;
 module_param_named(global_pid_lookups, binder_global_pid_lookups, bool, S_IRUGO);
-
+static int binder_set_stop_on_user_error(const char *val,
+					 const struct kernel_param *kp)
 {
 	int ret;
 
