@@ -134,6 +134,10 @@ static int binder_stop_on_user_error;
 
 static int binder_set_stop_on_user_error(const char *val,
 					 const struct kernel_param *kp)
+
+static bool binder_global_pid_lookups = true;
+module_param_named(global_pid_lookups, binder_global_pid_lookups, bool, S_IRUGO);
+
 {
 	int ret;
 
@@ -2908,6 +2912,16 @@ static int binder_proc_transaction(struct binder_transaction *t,
 	if (oneway) {
 		BUG_ON(thread);
 		if (node->has_async_transaction) {
+			if (!strcmp(proc->context->name, "hwbinder")) {
+				// Halium: possible libgbinder bug workaround
+				pr_info("%d has pending async transaction, but still adding a new transaction to todo list (gbinder bug workaround)\n",
+						proc->pid);
+			} else {
+				pr_info("%d not applying gbinder workaround, context %s is not hwbinder\n",
+						proc->pid, proc->context->name);
+				pending_async = true;
+			}
+
 			pending_async = true;
 		} else {
 			node->has_async_transaction = true;
@@ -3885,7 +3899,7 @@ static int binder_thread_write(struct binder_proc *proc,
 
 				buf_node = buffer->target_node;
 				binder_node_inner_lock(buf_node);
-				BUG_ON(!buf_node->has_async_transaction);
+				//BUG_ON(!buf_node->has_async_transaction);
 				BUG_ON(buf_node->proc != proc);
 				w = binder_dequeue_work_head_ilocked(
 						&buf_node->async_todo);
@@ -4506,6 +4520,9 @@ retry:
 			trd->sender_pid =
 				task_tgid_nr_ns(sender,
 						task_active_pid_ns(current));
+		
+			if (binder_global_pid_lookups && trd->sender_pid == 0)
+                trd->sender_pid = task_tgid_nr(sender);
 		} else {
 			trd->sender_pid = 0;
 		}
