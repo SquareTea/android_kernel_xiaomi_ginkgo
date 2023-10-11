@@ -32,6 +32,7 @@
 
 &firmware {
 	android {
+                boot_devices = "soc/4744000.sdhci";
 		vbmeta {
 			parts = "vbmeta,boot,system,vendor,dtbo,recovery";
 		};
@@ -40,6 +41,7 @@
 			vendor {
 				dev = "/dev/block/platform/soc/4744000.sdhci/by-name/vendor";
 				fsmgr_flags = "wait";
+				status = "disabled";
 			};
 		};
 	};
