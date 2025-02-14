@@ -69,6 +69,12 @@ int proc_setup_self(struct super_block *s)
 		pr_err("proc_fill_super: can't allocate /proc/self\n");
 		return PTR_ERR(self);
 	}
+    
+    if (IS_ENABLED(CONFIG_PROC_PIDFS) && s->s_type == &pidfs_fs_type) {
+		ns->pidfs_self = self;
+		return 0;
+	}
+
 	ns->proc_self = self;
 	return 0;
 }

@@ -43,6 +43,14 @@ config PROC_VMCORE
         help
         Exports the dump image of crashed kernel in ELF format.
 
+config PROC_PIDFS
+	bool "pidfs file system support"
+	depends on PROC_FS
+	default y
+	help
+	  The pidfs filesystem contains a subset of the /proc file system
+	  which contains only information only about the processes.
+
 config PROC_SYSCTL
 	bool "Sysctl support (/proc/sys)" if EXPERT
 	depends on PROC_FS

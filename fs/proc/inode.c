@@ -474,6 +474,7 @@ struct inode *proc_get_inode(struct super_block *sb, struct proc_dir_entry *de)
 
 int proc_fill_super(struct super_block *s)
 {
+	struct proc_dir_entry *fs_root = &proc_root;
 	struct inode *root_inode;
 	int ret;
 
@@ -484,7 +485,9 @@ int proc_fill_super(struct super_block *s)
 	s->s_magic = PROC_SUPER_MAGIC;
 	s->s_op = &proc_sops;
 	s->s_time_gran = 1;
-
+    
+    if (IS_ENABLED(CONFIG_PROC_PIDFS) && s->s_type == &pidfs_fs_type)
+		fs_root = &pidfs_root;
 	/*
 	 * procfs isn't actually a stacking filesystem; however, there is
 	 * too much magic going on inside it to permit stacking things on
@@ -492,8 +495,8 @@ int proc_fill_super(struct super_block *s)
 	 */
 	s->s_stack_depth = FILESYSTEM_MAX_STACK_DEPTH;
 	
-	pde_get(&proc_root);
-	root_inode = proc_get_inode(s, &proc_root);
+	pde_get(fs_root);
+	root_inode = proc_get_inode(s, fs_root);
 	if (!root_inode) {
 		pr_err("proc_fill_super: get root inode failed\n");
 		return -ENOMEM;
