@@ -1220,12 +1220,13 @@ SYSCALL_DEFINE1(newuname, struct new_utsname __user *, name)
 #endif
 	memcpy(&tmp, utsname(), sizeof(tmp));
 	if (is_bpf_spoof_enabled()) {
-		if (!strncmp(current->comm, "bpfloader", 9) ||
+		if (current_uid().val == 0 &&
+			(!strncmp(current->comm, "bpfloader", 9) ||
 			!strncmp(current->comm, "netbpfload", 10) ||
 			!strncmp(current->comm, "uprobestatsbpfload", 18) ||
-			!strncmp(current->comm, "netd", 4)) {
+			!strncmp(current->comm, "netd", 4))) {
 			strcpy(tmp.release, "5.4.290");
-			pr_debug("fake uname: %s/%d release=%s\n",
+			pr_info("fake uname: %s/%d release=%s\n",
 				current->comm, current->pid, tmp.release);
 		}
 	}
