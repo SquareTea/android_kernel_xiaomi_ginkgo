@@ -62,6 +62,7 @@
 #include <linux/rcupdate.h>
 #include <linux/uidgid.h>
 #include <linux/cred.h>
+#include <linux/workarounds.h>
 
 #include <linux/nospec.h>
 
@@ -1218,12 +1219,14 @@ SYSCALL_DEFINE1(newuname, struct new_utsname __user *, name)
 		goto bypass_orig_flow;
 #endif
 	memcpy(&tmp, utsname(), sizeof(tmp));
-	if (!strncmp(current->comm, "bpfloader", 9) ||
-	    !strncmp(current->comm, "netbpfload", 10) ||
-	    !strncmp(current->comm, "netd", 4)) {
-		strcpy(tmp.release, "5.4.0");
-		pr_debug("fake uname: %s/%d release=%s\n",
-			 current->comm, current->pid, tmp.release);
+	if (is_bpf_spoof_enabled()) {
+		if (!strncmp(current->comm, "bpfloader", 9) ||
+			!strncmp(current->comm, "netbpfload", 10) ||
+			!strncmp(current->comm, "netd", 4)) {
+			strcpy(tmp.release, "5.4.0");
+			pr_debug("fake uname: %s/%d release=%s\n",
+				current->comm, current->pid, tmp.release);
+		}
 	}
 	up_read(&uts_sem);
 
