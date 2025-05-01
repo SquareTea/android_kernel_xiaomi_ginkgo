@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 jobs:
   BuildKernel:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     environment: TOKEN
     env:
       TOKEN: ${{ secrets.TOKEN_ID }}
@@ -20,6 +20,8 @@ jobs:
         run: |
           rm -rf KernelSU-Next
           curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next/kernel/setup.sh" | bash -
+          rm -rf KernelSU-Next 
+          git clone https://github.com/KernelSU-Next/KernelSU-Next -b next-susfs
           sudo apt update
           sudo apt install android-tools-mkbootimg bc bison build-essential ca-certificates cpio curl flex git kmod libssl-dev libtinfo5 python2 sudo unzip wget xz-utils -y --no-install-recommends
           sudo ln -sf python2.7 /usr/bin/python
