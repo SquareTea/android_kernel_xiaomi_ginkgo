@@ -3063,6 +3063,9 @@ int __skb_csum_hwoffload_help(struct sk_buff *skb,
 			      const netdev_features_t features)
 {
 	if (features & (NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM)) {
+		 if (vlan_get_protocol(skb) == htons(ETH_P_IPV6) &&
+                    skb_network_header_len(skb) != sizeof(struct ipv6hdr))
+                        goto sw_checksum;
 		switch (skb->csum_offset) {
 		case offsetof(struct tcphdr, check):
 		case offsetof(struct udphdr, check):
@@ -3070,6 +3073,7 @@ int __skb_csum_hwoffload_help(struct sk_buff *skb,
 		}
 	}
 
+sw_checksum:
 	return skb_checksum_help(skb);
 }
 EXPORT_SYMBOL(__skb_csum_hwoffload_help);

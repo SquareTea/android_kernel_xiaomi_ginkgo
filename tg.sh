@@ -54,7 +54,6 @@ export TIME=$(date +"%S-%F")
 	patch \
 	pigz \
 	python3 \
-	python \
 	rsync \
 	shtool \
 	subversion \
