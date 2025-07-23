@@ -4990,6 +4990,9 @@ const struct bpf_verifier_ops flow_dissector_verifier_ops = {
 const struct bpf_prog_ops flow_dissector_prog_ops = {
 };
 
+const struct bpf_prog_ops sk_skb_prog_ops = {
+};
+
 int sk_detach_filter(struct sock *sk)
 {
 	int ret = -ENOENT;
