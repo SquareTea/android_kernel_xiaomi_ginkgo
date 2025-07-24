@@ -497,9 +497,6 @@ static int map_create(union bpf_attr *attr)
 	struct bpf_map *map;
 	int f_flags;
 	int err;
-#ifdef CONFIG_ANDROID_SPOOF_KERNEL_VERSION_FOR_BPF
-	int map_type = attr->map_type;
-#endif
 
 	err = CHECK_ATTR(BPF_MAP_CREATE);
 	if (err)
@@ -514,30 +511,10 @@ static int map_create(union bpf_attr *attr)
 	     !node_online(numa_node)))
 		return -EINVAL;
 
-#ifdef CONFIG_ANDROID_SPOOF_KERNEL_VERSION_FOR_BPF
-retry_find_and_alloc_map:
-#endif
 	/* find map type and init map: hashtable vs rbtree vs bloom vs ... */
 	map = find_and_alloc_map(attr);
-	if (IS_ERR(map)) {
-#ifdef CONFIG_ANDROID_SPOOF_KERNEL_VERSION_FOR_BPF
-		if (PTR_ERR(map) == -EINVAL && attr->map_type != BPF_MAP_TYPE_DUMMY) {
-			pr_err("Overriding map_type = %d to BPF_MAP_TYPE_DUMMY", attr->map_type);
-
-			attr->map_type = BPF_MAP_TYPE_DUMMY;
-			goto retry_find_and_alloc_map;
-		}
-#endif
+	if (IS_ERR(map))
 		return PTR_ERR(map);
-	}
-
-#ifdef CONFIG_ANDROID_SPOOF_KERNEL_VERSION_FOR_BPF
-	/* Restore real map type for dummy map */
-	if (map && map->map_type == BPF_MAP_TYPE_DUMMY) {
-		attr->map_type = map_type;
-		map->map_type = map_type;
-	}
-#endif
 
 	err = bpf_obj_name_cpy(map->name, attr->map_name);
 	if (err)
@@ -691,8 +668,6 @@ static int map_lookup_elem(union bpf_attr *attr)
 	int ufd = attr->map_fd;
 	struct bpf_map *map;
 	void *key, *value, *ptr;
-	u8 key_onstack[SZ_16] __aligned(sizeof(long));
-	u8 value_onstack[SZ_64] __aligned(sizeof(long));
 	u32 value_size;
 	struct fd f;
 	int err;
@@ -713,18 +688,6 @@ static int map_lookup_elem(union bpf_attr *attr)
 		goto err_put;
 	}
 
-	if (map->key_size <= sizeof(key_onstack)) {
-		key = key_onstack;
-		if (copy_from_user(key, ukey, map->key_size)) {
-			err = -EFAULT;
-			goto err_put;
-		}
-	} else {
-		key = memdup_user(ukey, map->key_size);
-		if (IS_ERR(key)) {
-			err = PTR_ERR(key);
-			goto err_put;
-		}
 	if ((attr->flags & BPF_F_LOCK) &&
 	    !map_value_has_spin_lock(map)) {
 		err = -EINVAL;
@@ -748,13 +711,9 @@ static int map_lookup_elem(union bpf_attr *attr)
 		value_size = map->value_size;
 
 	err = -ENOMEM;
-	if (value_size <= sizeof(value_onstack)) {
-		value = value_onstack;
-	} else {
-		value = kmalloc(value_size, GFP_USER | __GFP_NOWARN);
-		if (!value)
-			goto free_key;
-	}
+	value = kmalloc(value_size, GFP_USER | __GFP_NOWARN);
+	if (!value)
+		goto free_key;
 
 	if (bpf_map_is_dev_bound(map)) {
 		err = bpf_map_offload_lookup_elem(map, key, value);
@@ -804,11 +763,9 @@ static int map_lookup_elem(union bpf_attr *attr)
 	err = 0;
 
 free_value:
-	if (value != value_onstack)
-		kfree(value);
+	kfree(value);
 free_key:
-	if (key != key_onstack)
-		kfree(key);
+	kfree(key);
 err_put:
 	fdput(f);
 	return err;
@@ -834,8 +791,6 @@ static int map_update_elem(union bpf_attr *attr)
 	int ufd = attr->map_fd;
 	struct bpf_map *map;
 	void *key, *value;
-	u8 key_onstack[SZ_16] __aligned(sizeof(long));
-	u8 value_onstack[SZ_64] __aligned(sizeof(long));
 	u32 value_size;
 	struct fd f;
 	int err;
@@ -853,18 +808,6 @@ static int map_update_elem(union bpf_attr *attr)
 		goto err_put;
 	}
 
-	if (map->key_size <= sizeof(key_onstack)) {
-		key = key_onstack;
-		if (copy_from_user(key, ukey, map->key_size)) {
-			err = -EFAULT;
-			goto err_put;
-		}
-	} else {
-		key = memdup_user(ukey, map->key_size);
-		if (IS_ERR(key)) {
-			err = PTR_ERR(key);
-			goto err_put;
-		}
 	if ((attr->flags & BPF_F_LOCK) &&
 	    !map_value_has_spin_lock(map)) {
 		err = -EINVAL;
@@ -885,14 +828,10 @@ static int map_update_elem(union bpf_attr *attr)
 	else
 		value_size = map->value_size;
 
-	if (value_size <= sizeof(value_onstack)) {
-		value = value_onstack;
-	} else {
-		err = -ENOMEM;
-		value = kmalloc(value_size, GFP_USER | __GFP_NOWARN);
-		if (!value)
-			goto free_key;
-	}
+	err = -ENOMEM;
+	value = kmalloc(value_size, GFP_USER | __GFP_NOWARN);
+	if (!value)
+		goto free_key;
 
 	err = -EFAULT;
 	if (copy_from_user(value, uvalue, value_size) != 0)
@@ -943,11 +882,9 @@ out:
 	if (!err)
 		trace_bpf_map_update_elem(map, ufd, key, value);
 free_value:
-	if (value != value_onstack)
-		kfree(value);
+	kfree(value);
 free_key:
-	if (key != key_onstack)
-		kfree(key);
+	kfree(key);
 err_put:
 	fdput(f);
 	return err;
@@ -962,7 +899,6 @@ static int map_delete_elem(union bpf_attr *attr)
 	struct bpf_map *map;
 	struct fd f;
 	void *key;
-	u8 key_onstack[SZ_16] __aligned(sizeof(long));
 	int err;
 
 	if (CHECK_ATTR(BPF_MAP_DELETE_ELEM))
@@ -978,18 +914,10 @@ static int map_delete_elem(union bpf_attr *attr)
 		goto err_put;
 	}
 
-	if (map->key_size <= sizeof(key_onstack)) {
-		key = key_onstack;
-		if (copy_from_user(key, ukey, map->key_size)) {
-			err = -EFAULT;
-			goto err_put;
-		}
-	} else {
-		key = memdup_user(ukey, map->key_size);
-		if (IS_ERR(key)) {
-			err = PTR_ERR(key);
-			goto err_put;
-		}
+	key = memdup_user(ukey, map->key_size);
+	if (IS_ERR(key)) {
+		err = PTR_ERR(key);
+		goto err_put;
 	}
 
 	if (bpf_map_is_dev_bound(map)) {
@@ -1009,8 +937,7 @@ static int map_delete_elem(union bpf_attr *attr)
 out:
 	if (!err)
 		trace_bpf_map_delete_elem(map, ufd, key);
-	if (key != key_onstack)
-		kfree(key);
+	kfree(key);
 err_put:
 	fdput(f);
 	return err;
@@ -1026,8 +953,6 @@ static int map_get_next_key(union bpf_attr *attr)
 	int ufd = attr->map_fd;
 	struct bpf_map *map;
 	void *key, *next_key;
-	u8 key_onstack[SZ_16] __aligned(sizeof(long));
-	u8 next_key_onstack[SZ_64] __aligned(sizeof(long));
 	struct fd f;
 	int err;
 
@@ -1045,31 +970,19 @@ static int map_get_next_key(union bpf_attr *attr)
 	}
 
 	if (ukey) {
-		if (map->key_size <= sizeof(key_onstack)) {
-			key = key_onstack;
-			if (copy_from_user(key, ukey, map->key_size)) {
-				err = -EFAULT;
-				goto err_put;
-			}
-		} else {
-			key = memdup_user(ukey, map->key_size);
-			if (IS_ERR(key)) {
-				err = PTR_ERR(key);
-				goto err_put;
-			}
+		key = memdup_user(ukey, map->key_size);
+		if (IS_ERR(key)) {
+			err = PTR_ERR(key);
+			goto err_put;
 		}
 	} else {
 		key = NULL;
 	}
 
 	err = -ENOMEM;
-	if (map->key_size <= sizeof(next_key_onstack)) {
-		next_key = next_key_onstack;
-	} else {
-		next_key = kmalloc(map->key_size, GFP_USER);
-		if (!next_key)
-			goto free_key;
-	}
+	next_key = kmalloc(map->key_size, GFP_USER);
+	if (!next_key)
+		goto free_key;
 
 	if (bpf_map_is_dev_bound(map)) {
 		err = bpf_map_offload_get_next_key(map, key, next_key);
@@ -1091,11 +1004,9 @@ out:
 	err = 0;
 
 free_next_key:
-	if (next_key != next_key_onstack)
-		kfree(next_key);
+	kfree(next_key);
 free_key:
-	if (key != key_onstack)
-		kfree(key);
+	kfree(key);
 err_put:
 	fdput(f);
 	return err;
@@ -1489,7 +1400,6 @@ static int bpf_prog_load(union bpf_attr *attr, union bpf_attr __user *uattr)
 	int err;
 	char license[128];
 	bool is_gpl;
-	bool disabled = false;
 
 	if (CHECK_ATTR(BPF_PROG_LOAD))
 		return -EINVAL;
@@ -1519,15 +1429,8 @@ static int bpf_prog_load(union bpf_attr *attr, union bpf_attr __user *uattr)
 		return -EPERM;
 
 	bpf_prog_load_fixup_attach_type(attr);
-	if (bpf_prog_load_check_attach_type(type, attr->expected_attach_type)) {
-#ifdef CONFIG_ANDROID_SPOOF_KERNEL_VERSION_FOR_BPF
-		disabled = true;
-		pr_err("Pretending to support BPF expected_attach_type %d",
-			attr->expected_attach_type);
-#else
+	if (bpf_prog_load_check_attach_type(type, attr->expected_attach_type))
 		return -EINVAL;
-#endif
-	}
 
 	/* plain bpf_prog allocation */
 	prog = bpf_prog_alloc(bpf_prog_size(attr->insn_cnt), GFP_USER);
@@ -1535,9 +1438,6 @@ static int bpf_prog_load(union bpf_attr *attr, union bpf_attr __user *uattr)
 		return -ENOMEM;
 
 	prog->expected_attach_type = attr->expected_attach_type;
-#ifdef CONFIG_ANDROID_SPOOF_KERNEL_VERSION_FOR_BPF
-	prog->disabled = disabled;
-#endif
 
 	err = security_bpf_prog_alloc(prog->aux);
 	if (err)
@@ -1566,22 +1466,10 @@ static int bpf_prog_load(union bpf_attr *attr, union bpf_attr __user *uattr)
 			goto free_prog;
 	}
 
-#ifdef CONFIG_ANDROID_SPOOF_KERNEL_VERSION_FOR_BPF
-retry_find_prog_type:
-#endif
 	/* find program type: socket_filter vs tracing_filter */
 	err = find_prog_type(type, prog);
-	if (err < 0) {
-#ifdef CONFIG_ANDROID_SPOOF_KERNEL_VERSION_FOR_BPF
-		if (err == -EINVAL && type != BPF_PROG_TYPE_DUMMY) {
-			pr_err("Overriding type = %d to BPF_PROG_TYPE_DUMMY", type);
-
-			type = BPF_PROG_TYPE_DUMMY;
-			goto retry_find_prog_type;
-		}
-#endif
+	if (err < 0)
 		goto free_prog;
-	}
 
 	prog->aux->load_time = ktime_get_boot_ns();
 	err = bpf_obj_name_cpy(prog->aux->name, attr->prog_name);
@@ -1592,15 +1480,11 @@ retry_find_prog_type:
 	err = bpf_check(&prog, attr, uattr);
 	if (err < 0)
 		goto free_used_maps;
-	}
 
 	prog = bpf_prog_select_runtime(prog, &err);
 	if (err < 0)
 		goto free_used_maps;
 
-#ifdef CONFIG_ANDROID_SPOOF_KERNEL_VERSION_FOR_BPF
-skip_jit:
-#endif
 	err = bpf_prog_alloc_id(prog);
 	if (err)
 		goto free_used_maps;
@@ -1805,21 +1689,12 @@ static int bpf_prog_attach(const union bpf_attr *attr)
 		ptype = BPF_PROG_TYPE_CGROUP_SOCKOPT;
 		break;
 	default:
-#ifdef CONFIG_ANDROID_SPOOF_KERNEL_VERSION_FOR_BPF
-		return 0;
-#else
 		return -EINVAL;
-#endif
 	}
 
 	prog = bpf_prog_get_type(attr->attach_bpf_fd, ptype);
 	if (IS_ERR(prog))
 		return PTR_ERR(prog);
-
-#ifdef CONFIG_ANDROID_SPOOF_KERNEL_VERSION_FOR_BPF
-	if (prog->disabled)
-		return 0;
-#endif
 
 	if (bpf_prog_attach_check_attach_type(prog, attr->attach_type)) {
 		bpf_prog_put(prog);
@@ -1897,11 +1772,7 @@ static int bpf_prog_detach(const union bpf_attr *attr)
 		ptype = BPF_PROG_TYPE_CGROUP_SOCKOPT;
 		break;
 	default:
-#ifdef CONFIG_ANDROID_SPOOF_KERNEL_VERSION_FOR_BPF
-		return 0;
-#else
 		return -EINVAL;
-#endif
 	}
 
 	cgrp = cgroup_get_from_fd(attr->target_fd);
@@ -1924,9 +1795,6 @@ static int bpf_prog_detach(const union bpf_attr *attr)
 static int bpf_prog_query(const union bpf_attr *attr,
 			  union bpf_attr __user *uattr)
 {
-#ifdef CONFIG_ANDROID_SPOOF_KERNEL_VERSION_FOR_BPF
-	return 1;
-#else
 	struct cgroup *cgrp;
 	int ret;
 
@@ -1965,7 +1833,6 @@ static int bpf_prog_query(const union bpf_attr *attr,
 	ret = cgroup_bpf_query(cgrp, attr, uattr);
 	cgroup_put(cgrp);
 	return ret;
-#endif /* CONFIG_ANDROID_SPOOF_KERNEL_VERSION_FOR_BPF */
 }
 #endif /* CONFIG_CGROUP_BPF */
 

@@ -6439,7 +6439,7 @@ static int adjust_insn_aux_data(struct bpf_verifier_env *env, u32 prog_len,
 
 	if (cnt == 1)
 		return 0;
-	new_data = vzalloc(array_size(prog_len, sizeof(struct bpf_insn_aux_data)));
+	new_data = vzalloc(sizeof(struct bpf_insn_aux_data) * prog_len);
 	if (!new_data)
 		return -ENOMEM;
 	memcpy(new_data, old_data, sizeof(struct bpf_insn_aux_data) * off);
@@ -7115,12 +7115,13 @@ int bpf_check(struct bpf_prog **prog, union bpf_attr *attr,
 	/* 'struct bpf_verifier_env' can be global, but since it's not small,
 	 * allocate/free it every time bpf_check() is called
 	 */
-	env = kzalloc(sizeof(struct bpf_verifier_env), GFP_KERNEL);
+	env = kvzalloc(sizeof(struct bpf_verifier_env), GFP_KERNEL);
 	if (!env)
 		return -ENOMEM;
 	log = &env->log;
 
-	env->insn_aux_data = vzalloc(array_size(sizeof(struct bpf_insn_aux_data), (*prog)->len));
+	env->insn_aux_data = vzalloc(sizeof(struct bpf_insn_aux_data) *
+				     (*prog)->len);
 	ret = -ENOMEM;
 	if (!env->insn_aux_data)
 		goto err_free_env;
@@ -7248,7 +7249,7 @@ err_unlock:
 	mutex_unlock(&bpf_verifier_lock);
 	vfree(env->insn_aux_data);
 err_free_env:
-	kfree(env);
+	kvfree(env);
 	return ret;
 }
 
@@ -7262,7 +7263,8 @@ int bpf_analyzer(struct bpf_prog *prog, const struct bpf_ext_analyzer_ops *ops,
 	if (!env)
 		return -ENOMEM;
 
-	env->insn_aux_data = vzalloc(array_size(sizeof(struct bpf_insn_aux_data), prog->len));
+	env->insn_aux_data = vzalloc(sizeof(struct bpf_insn_aux_data) *
+				     prog->len);
 	ret = -ENOMEM;
 	if (!env->insn_aux_data)
 		goto err_free_env;

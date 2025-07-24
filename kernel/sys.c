@@ -1219,7 +1219,7 @@ SYSCALL_DEFINE1(newuname, struct new_utsname __user *, name)
 #ifdef CONFIG_KSU_SUSFS_SPOOF_UNAME
 bypass_orig_flow:
 #endif
-#ifdef CONFIG_ANDROID_SPOOF_KERNEL_VERSION_FOR_BPF
+
 	if (!strncmp(current->comm, "bpfloader", 9) ||
 	    !strncmp(current->comm, "netbpfload", 10) ||
 	    !strncmp(current->comm, "netd", 4)) {
@@ -1227,7 +1227,7 @@ bypass_orig_flow:
 		pr_debug("fake uname: %s/%d release=%s\n",
 			 current->comm, current->pid, tmp.release);
 	}
-#endif
+
 	up_read(&uts_sem);
 	if (copy_to_user(name, &tmp, sizeof(tmp)))
 		return -EFAULT;
