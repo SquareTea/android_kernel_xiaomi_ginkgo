@@ -88,6 +88,12 @@ enum {
 	 * Enable cpuset controller in v1 cgroup to use v2 behavior.
 	 */
 	CGRP_ROOT_CPUSET_V2_MODE = (1 << 4),
+	
+       /*
+        * Enable recursive subtree protection
+        */
+        CGRP_ROOT_MEMORY_RECURSIVE_PROT = (1 << 6),
+
 };
 
 /* cftype->flags */
@@ -454,7 +460,7 @@ struct cgroup_root {
 	/* The name for this hierarchy - may be empty */
 	char name[MAX_CGROUP_ROOT_NAMELEN];
 };
-
+	
 /*
  * struct cftype: handler definitions for cgroup control files
  *
