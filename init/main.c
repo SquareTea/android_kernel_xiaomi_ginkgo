@@ -641,17 +641,6 @@ asmlinkage __visible void __init start_kernel(void)
 	if (!IS_ERR_OR_NULL(after_dashes))
 		parse_args("Setting init args", after_dashes, NULL, 0, -1, -1,
 			   NULL, set_init_arg);
-
-<<<<<<< HEAD
-=======
-	pr_info("Hack: init_protection=%s\n",
-		init_protection ? "enabled" : "disabled");
-	pr_info("Workaround: legacy_timestamp_source=%s\n",
-			legacy_timestamp_source ? "enabled" : "disabled");
-	pr_info("Workaround: uname_bpf_spoof=%s\n",
-			uname_bpf_spoof ? "enabled" : "disabled");
-
->>>>>>> be94808de5e7 (sys: disable uname spoof by default and add an init parameter)
 	/*
 	 * These use large bootmem allocations and must precede
 	 * kmem_cache_init()
