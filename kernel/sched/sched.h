@@ -2586,7 +2586,6 @@ enum sched_boost_policy {
 #define FULL_THROTTLE_BOOST 1
 #define CONSERVATIVE_BOOST 2
 #define RESTRAINED_BOOST 3
-
 /*
  * Returns the rq capacity of any rq in a group. This does not play
  * well with groups where rq capacity can change independently.
@@ -3069,6 +3068,11 @@ static inline bool is_min_capacity_cpu(int cpu)
 #else
 	return true;
 #endif
+}
+
+static inline int mark_reserved(int cpu)
+{
+	return 0;
 }
 
 #ifdef CONFIG_SMP

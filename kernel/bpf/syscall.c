@@ -1490,7 +1490,7 @@ static int bpf_prog_attach(const union bpf_attr *attr)
 	struct cgroup *cgrp;
 	int ret;
 
-	if (!capable(CAP_NET_ADMIN))
+	if (!capable(CAP_NET_ADMIN) && !capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
 	if (CHECK_ATTR(BPF_PROG_ATTACH))
@@ -1571,7 +1571,7 @@ static int bpf_prog_detach(const union bpf_attr *attr)
 	struct cgroup *cgrp;
 	int ret;
 
-	if (!capable(CAP_NET_ADMIN))
+	if (!capable(CAP_NET_ADMIN) && !capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
 	if (CHECK_ATTR(BPF_PROG_DETACH))
